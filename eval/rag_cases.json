@@ -1,0 +1,14 @@
+[
+  {
+    "question": "七天无理由退货怎么操作？",
+    "expected_source_contains": "售后政策"
+  },
+  {
+    "question": "羽绒服的退货率控制目标是多少？",
+    "expected_source_contains": "羽绒服运营手册"
+  },
+  {
+    "question": "华东区 Q4 GMV 同比增长多少？",
+    "expected_source_contains": "华东区Q4复盘"
+  }
+]

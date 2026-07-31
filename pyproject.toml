@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ecommerce-ai"
+version = "0.1.0"
+description = "电商数据分析 AI 应用（LangGraph + RAG + NL2SQL）"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "ecommerce-ai" }]
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.optional-dependencies]
+# 中文高质量向量（需额外约 1.5GB torch），默认不装
+bge = [
+    "sentence-transformers>=3.0.0",
+    "langchain-huggingface>=0.1.0",
+]
+
+[tool.setuptools.package-data]
+ecommerce_ai = ["py.typed"]

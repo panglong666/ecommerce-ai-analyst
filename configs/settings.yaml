@@ -1,0 +1,27 @@
+# 运行时配置（.env 优先级更高，覆盖此处默认值）
+llm:
+  provider: deepseek          # deepseek / mock
+  deepseek_base_url: https://api.deepseek.com
+  deepseek_model: deepseek-chat
+
+embedding:
+  provider: chroma_default    # chroma_default / local_bge
+  bge_model: BAAI/bge-small-zh-v1.5
+
+data_source:
+  provider: mock              # mock / warehouse
+  sqlite_path: data/mock.sqlite
+  upload_dir: data/uploads
+
+vector_store:
+  provider: chroma            # chroma / pgvector / milvus
+  chroma_path: data/chroma
+
+server:
+  host: 127.0.0.1
+  port: 8000
+
+retrieval:
+  top_k: 5
+  chunk_size: 500
+  chunk_overlap: 50

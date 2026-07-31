@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>电商数据分析 AI 助手</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif; background: #f5f6f8; color: #1f2329; height: 100vh; display: flex; flex-direction: column; }
+  header { background: #ffffff; border-bottom: 1px solid #e5e7eb; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 16px; font-weight: 500; }
+  .modes button { border: 1px solid #d1d5db; background: #fff; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-left: 6px; }
+  .modes button.active { background: #185fa5; color: #fff; border-color: #185fa5; }
+  .status { font-size: 12px; color: #6b7280; }
+  main { flex: 1; display: flex; overflow: hidden; }
+  .chat { flex: 2; display: flex; flex-direction: column; border-right: 1px solid #e5e7eb; background: #fff; }
+  .msgs { flex: 1; overflow-y: auto; padding: 18px; }
+  .msg { margin-bottom: 16px; }
+  .msg.user { text-align: right; }
+  .msg.user .bubble { display: inline-block; background: #185fa5; color: #fff; padding: 8px 12px; border-radius: 12px 12px 2px 12px; max-width: 80%; text-align: left; }
+  .msg.ai .bubble { background: #f7f8fa; border: 1px solid #eef0f3; padding: 12px 14px; border-radius: 12px; max-width: 92%; }
+  .bubble .meta { font-size: 12px; color: #6b7280; margin-bottom: 6px; }
+  .bubble .answer { line-height: 1.6; font-size: 14px; white-space: pre-wrap; }
+  .chart { width: 100%; height: 260px; margin: 10px 0; }
+  .sqlbox { background: #0c447c; color: #e6f1fb; padding: 8px 10px; border-radius: 6px; font-family: Consolas, monospace; font-size: 12px; margin: 8px 0; white-space: pre-wrap; }
+  .src { font-size: 12px; color: #475467; background: #ede9fe; padding: 4px 8px; border-radius: 4px; margin: 3px 0; }
+  .result-table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0; }
+  .result-table th, .result-table td { border: 1px solid #e5e7eb; padding: 4px 8px; text-align: left; }
+  .result-table th { background: #f3f4f6; }
+  .chips { padding: 8px 18px; border-top: 1px solid #eef0f3; }
+  .chips span { display: inline-block; background: #eaf2ff; color: #0c447c; padding: 4px 10px; border-radius: 14px; font-size: 12px; margin-right: 6px; cursor: pointer; }
+  .input-row { display: flex; padding: 12px 18px; border-top: 1px solid #e5e7eb; }
+  .input-row input { flex: 1; border: 1px solid #d1d5db; border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+  .input-row button { margin-left: 10px; background: #185fa5; color: #fff; border: none; border-radius: 8px; padding: 0 20px; cursor: pointer; font-size: 14px; }
+  .input-row button:disabled { background: #9ca3af; }
+  .sidebar { flex: 1; overflow-y: auto; background: #fbfbfc; padding: 16px; }
+  .panel { background: #fff; border: 1px solid #eef0f3; border-radius: 10px; padding: 12px; margin-bottom: 14px; }
+  .panel h3 { font-size: 13px; font-weight: 500; margin-bottom: 8px; color: #1f2329; }
+  .panel button { border: 1px solid #d1d5db; background: #fff; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; margin: 3px 3px 3px 0; }
+  .panel button.primary { background: #185fa5; color: #fff; border-color: #185fa5; }
+  .ds-item { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 5px 0; border-bottom: 1px dashed #eef0f3; }
+  .ds-item button { color: #b91c1c; }
+  .alert-box { font-size: 12px; color: #92400e; background: #faeeda; padding: 8px; border-radius: 6px; margin: 4px 0; }
+  .loading { color: #6b7280; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>电商数据分析 AI 助手</h1>
+  <div class="modes">
+    <button class="active" data-mode="auto">自动</button>
+    <button data-mode="analysis">分析</button>
+    <button data-mode="knowledge">知识库</button>
+    <span class="status" id="status">加载中...</span>
+  </div>
+</header>
+<main>
+  <div class="chat">
+    <div class="msgs" id="msgs">
+      <div class="msg ai"><div class="bubble"><div class="answer">你好！我是电商数据分析助手。试试问我「上个月华东区羽绒服的销售额和同比怎么样？」，或切换到知识库问售后政策。</div></div></div>
+    </div>
+    <div class="chips">
+      <span onclick="fill('上个月华东区羽绒服的销售额和同比怎么样？')">华东羽绒服销售额</span>
+      <span onclick="fill('各品类销售额排行')">品类排行</span>
+      <span onclick="fill('近半年各区域 GMV 趋势')">区域GMV趋势</span>
+      <span onclick="fill('七天无理由退货怎么操作？')">退货政策</span>
+    </div>
+    <div class="input-row">
+      <input id="q" placeholder="输入你的问题..." onkeydown="if(event.key==='Enter')send()" />
+      <button id="sendbtn" onclick="send()">发送</button>
+    </div>
+  </div>
+  <div class="sidebar">
+    <div class="panel">
+      <h3>本次执行</h3>
+      <div id="inspect" class="loading">尚无执行</div>
+    </div>
+    <div class="panel">
+      <h3>数据管理</h3>
+      <div>上传结构化数据（CSV/Excel）：</div>
+      <input type="file" id="csvfile" accept=".csv,.xlsx,.xls" />
+      <button class="primary" onclick="uploadData()">上传并导入</button>
+      <hr style="margin:8px 0;border:none;border-top:1px solid #eef0f3" />
+      <div>上传知识文档（PDF/Word/TXT）：</div>
+      <input type="file" id="docfile" accept=".txt,.md,.csv,.pdf,.docx" />
+      <button class="primary" onclick="uploadDoc()">上传并索引</button>
+      <hr style="margin:8px 0;border:none;border-top:1px solid #eef0f3" />
+      <button onclick="loadDatasets()">刷新数据集</button>
+      <button onclick="reindex()">重建知识索引</button>
+      <button onclick="alertScan()">扫描异常预警</button>
+      <div id="dslist" style="margin-top:8px"></div>
+      <div id="alertout"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+let mode = "auto";
+document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".modes button").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  mode = b.dataset.mode;
+});
+
+function fill(t) { document.getElementById("q").value = t; }
+
+function addMsg(cls, html) {
+  const d = document.createElement("div");
+  d.className = "msg " + cls;
+  d.innerHTML = `<div class="bubble">${html}</div>`;
+  document.getElementById("msgs").appendChild(d);
+  document.getElementById("msgs").scrollTop = 1e9;
+  return d;
+}
+
+async function send() {
+  const q = document.getElementById("q").value.trim();
+  if (!q) return;
+  addMsg("user", q);
+  document.getElementById("q").value = "";
+  const btn = document.getElementById("sendbtn"); btn.disabled = true;
+  const loading = addMsg("ai", `<div class="loading">思考中...</div>`);
+
+  try {
+    let html;
+    if (mode === "knowledge") {
+      const r = await fetch(`/api/v1/knowledge/search?q=${encodeURIComponent(q)}`);
+      const j = await r.json();
+      html = renderKnowledge(j);
+      renderInspect({ route: "rag", sources: (j.results||[]).map(x=>x.source) });
+    } else {
+      const r = await fetch("/api/v1/chat", {
+        method: "POST", headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ question: q, mode })
+      });
+      const j = await r.json();
+      html = renderAgent(j);
+      renderInspect(j);
+    }
+    loading.innerHTML = html;
+    // 渲染图表
+    loading.querySelectorAll("[data-chart]").forEach(el => {
+      try { echarts.init(el).setOption(JSON.parse(el.dataset.chart)); } catch(e){}
+    });
+  } catch (e) {
+    loading.innerHTML = `<div class="answer" style="color:#b91c1c">请求失败：${e}</div>`;
+  }
+  btn.disabled = false;
+}
+
+function renderAgent(j) {
+  let h = `<div class="meta">${j.route} · ${j.elapsed_ms}ms</div>`;
+  if (j.sql) h += `<div class="sqlbox">${escapeHtml(j.sql)}</div>`;
+  if (j.chart && j.chart.option) h += `<div class="chart" data-chart='${escapeAttr(JSON.stringify(j.chart.option))}'></div>`;
+  if (j.rows && j.rows.length) h += tableHtml(j.columns, j.rows.slice(0, 50));
+  h += `<div class="answer">${escapeHtml(j.answer||"")}</div>`;
+  if (j.sources && j.sources.length) h += j.sources.map(s=>`<div class="src">📄 ${escapeHtml(s)}</div>`).join("");
+  return h;
+}
+
+function renderKnowledge(j) {
+  const items = (j.results||[]);
+  if (!items.length) return `<div class="answer">知识库暂无相关内容。</div>`;
+  let h = items.map((i,idx)=>`<div class="src">${idx+1}. ${escapeHtml(i.source)}</div><div class="answer" style="margin-bottom:8px">${escapeHtml(i.text)}</div>`).join("");
+  return h;
+}
+
+function tableHtml(cols, rows) {
+  let h = `<table class="result-table"><tr>${cols.map(c=>`<th>${escapeHtml(c)}</th>`).join("")}</tr>`;
+  rows.forEach(r => { h += `<tr>${cols.map(c=>`<td>${escapeHtml(String(r[c]??""))}</td>`).join("")}</tr>`; });
+  return h + "</table>";
+}
+
+function renderInspect(j) {
+  let h = "";
+  if (j.route) h += `<div>路由：<b>${j.route}</b>${j.elapsed_ms?` · ${j.elapsed_ms}ms`:""}</div>`;
+  if (j.sql) h += `<div class="sqlbox">${escapeHtml(j.sql)}</div>`;
+  if (j.sources && j.sources.length) h += j.sources.map(s=>`<div class="src">${escapeHtml(s)}</div>`).join("");
+  if (!h) h = "尚无执行";
+  document.getElementById("inspect").innerHTML = h;
+}
+
+async function uploadData() {
+  const f = document.getElementById("csvfile").files[0];
+  if (!f) return alert("请选择文件");
+  const fd = new FormData(); fd.append("file", f);
+  const r = await fetch("/api/v1/data/upload", { method:"POST", body: fd });
+  const j = await r.json();
+  alert(j.success ? `导入成功：${j.dataset.name}（${j.dataset.rows} 行）` : `失败：${j.message}`);
+  loadDatasets();
+}
+async function uploadDoc() {
+  const f = document.getElementById("docfile").files[0];
+  if (!f) return alert("请选择文件");
+  const fd = new FormData(); fd.append("file", f);
+  const r = await fetch("/api/v1/knowledge/upload", { method:"POST", body: fd });
+  const j = await r.json();
+  alert(j.success ? `索引成功：${j.source}（${j.chunks} 片段）` : `失败：${j.detail||JSON.stringify(j)}`);
+}
+async function loadDatasets() {
+  const r = await fetch("/api/v1/datasets");
+  const j = await r.json();
+  document.getElementById("dslist").innerHTML = (j||[]).map(d=>
+    `<div class="ds-item"><span>${d.name} · ${d.rows}行</span><button onclick="delDs('${d.name}')">删除</button></div>`).join("") || "无数据集";
+}
+async function delDs(n) {
+  if (!confirm(`删除表 ${n}？`)) return;
+  await fetch(`/api/v1/datasets/${n}`, { method:"DELETE" });
+  loadDatasets();
+}
+async function reindex() {
+  const r = await fetch("/api/v1/knowledge/reindex", { method:"POST" });
+  const j = await r.json();
+  alert(`已索引 ${j.indexed_docs} 篇文档`);
+}
+async function alertScan() {
+  const r = await fetch("/api/v1/alerts/scan", { method:"POST" });
+  const j = await r.json();
+  let h = (j.attribution||[]).map(a=>`<div class="alert-box">${escapeHtml(a)}</div>`).join("");
+  h += `<div class="alert-box">建议：${escapeHtml(j.advice||"")}</div>`;
+  document.getElementById("alertout").innerHTML = h;
+}
+
+function escapeHtml(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function escapeAttr(s){return String(s).replace(/'/g,"&#39;");}
+
+fetch("/api/v1/health").then(r=>r.json()).then(j=>{
+  document.getElementById("status").textContent = `数据源:${j.data_source} · LLM:${j.llm_provider}${j.llm_configured?"(已配置)":"(Mock)"}`;
+});
+loadDatasets();
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+[
+  {
+    "question": "上个月华东区羽绒服的销售额和同比怎么样？",
+    "expected_tables": ["orders"],
+    "expected_keywords": ["SELECT", "SUM", "amount", "羽绒服", "华东"]
+  },
+  {
+    "question": "各品类销售额排行",
+    "expected_tables": ["orders"],
+    "expected_keywords": ["GROUP BY", "category", "SUM"]
+  },
+  {
+    "question": "近半年各区域 GMV 趋势",
+    "expected_tables": ["daily_metrics"],
+    "expected_keywords": ["region", "gmv", "GROUP BY"]
+  },
+  {
+    "question": "哪个渠道退款率最高？",
+    "expected_tables": ["orders"],
+    "expected_keywords": ["refund", "channel"]
+  }
+]
