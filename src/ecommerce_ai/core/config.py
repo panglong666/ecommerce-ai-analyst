@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     data_source: str = "mock"  # mock / warehouse
     sqlite_path: str = "data/mock.sqlite"
     upload_dir: str = "data/uploads"
+    docs_subdir: str = "docs"  # 知识库策划语料子目录；reindex / 种子 / 上传共用，可在 .env 配置
 
     # ===== 向量库 =====
     vector_store: str = "chroma"
@@ -40,6 +41,12 @@ class Settings(BaseSettings):
     # ===== 服务 =====
     host: str = "127.0.0.1"
     port: int = 8000
+
+    # ===== 安全 =====
+    # 可选 API Key：留空=演示模式免鉴权；非空时所有 API 需带 X-API-Key 头
+    api_key: str = ""
+    # CORS 白名单（逗号分隔）。默认仅本机前端；公网部署请改为前端真实域名
+    cors_origins: str = "http://127.0.0.1:8000"
 
     # ===== 检索 =====
     top_k: int = 5
@@ -52,6 +59,11 @@ class Settings(BaseSettings):
     @property
     def project_root(self) -> Path:
         return PROJECT_ROOT
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        """把逗号分隔的 cors_origins 转成列表，供 CORS 中间件使用。"""
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     def abs(self, relative: str) -> Path:
         """把相对路径转成相对项目根的绝对路径。"""

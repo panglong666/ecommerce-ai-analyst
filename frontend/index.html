@@ -24,6 +24,7 @@
   .bubble .answer { line-height: 1.6; font-size: 14px; white-space: pre-wrap; }
   .chart { width: 100%; height: 260px; margin: 10px 0; }
   .sqlbox { background: #0c447c; color: #e6f1fb; padding: 8px 10px; border-radius: 6px; font-family: Consolas, monospace; font-size: 12px; margin: 8px 0; white-space: pre-wrap; }
+  .chart-reason { font-size: 12px; color: #475467; background: #f0f7ff; border-left: 3px solid #185fa5; padding: 4px 8px; margin: 2px 0 8px; }
   .src { font-size: 12px; color: #475467; background: #ede9fe; padding: 4px 8px; border-radius: 4px; margin: 3px 0; }
   .result-table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0; }
   .result-table th, .result-table td { border: 1px solid #e5e7eb; padding: 4px 8px; text-align: left; }
@@ -43,6 +44,9 @@
   .ds-item button { color: #b91c1c; }
   .alert-box { font-size: 12px; color: #92400e; background: #faeeda; padding: 8px; border-radius: 6px; margin: 4px 0; }
   .loading { color: #6b7280; font-size: 13px; }
+  .clarify-box { margin: 8px 0; }
+  .clarify-opt { display: inline-block; background: #eaf2ff; color: #0c447c; padding: 7px 13px; border-radius: 16px; font-size: 13px; margin: 5px 7px 0 0; cursor: pointer; border: 1px solid #cfe0f7; }
+  .clarify-opt:hover { background: #d8e8ff; }
 </style>
 </head>
 <body>
@@ -67,6 +71,9 @@
       <span onclick="fill('七天无理由退货怎么操作？')">退货政策</span>
     </div>
     <div class="input-row">
+      <select id="dataset" title="选择分析的数据集" onchange="refreshAlertControls()" style="max-width:190px;margin-right:10px;border:1px solid #d1d5db;border-radius:8px;padding:10px 8px;font-size:13px;background:#fff;">
+        <option value="">自动（全部表）</option>
+      </select>
       <input id="q" placeholder="输入你的问题..." onkeydown="if(event.key==='Enter')send()" />
       <button id="sendbtn" onclick="send()">发送</button>
     </div>
@@ -88,7 +95,20 @@
       <hr style="margin:8px 0;border:none;border-top:1px solid #eef0f3" />
       <button onclick="loadDatasets()">刷新数据集</button>
       <button onclick="reindex()">重建知识索引</button>
-      <button onclick="alertScan()">扫描异常预警</button>
+      <hr style="margin:8px 0;border:none;border-top:1px solid #eef0f3" />
+      <div style="font-size:12px;color:#475467;margin-bottom:4px">智能预警（自适应）</div>
+      <div style="font-size:12px;margin-bottom:6px">监测模式：<b id="monitoring">—</b></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+        <select id="alertTimeCol" title="时间列（留空=自动识别）" style="border:1px solid #d1d5db;border-radius:6px;padding:4px 6px;font-size:12px;">
+          <option value="">时间列：自动</option>
+        </select>
+        <select id="alertSens" title="灵敏度" style="border:1px solid #d1d5db;border-radius:6px;padding:4px 6px;font-size:12px;">
+          <option value="conservative">保守</option>
+          <option value="standard" selected>标准</option>
+          <option value="sensitive">高灵敏</option>
+        </select>
+      </div>
+      <button class="primary" onclick="runAlert()">扫描预警</button>
       <div id="dslist" style="margin-top:8px"></div>
       <div id="alertout"></div>
     </div>
@@ -123,36 +143,88 @@ async function send() {
   const loading = addMsg("ai", `<div class="loading">思考中...</div>`);
 
   try {
-    let html;
     if (mode === "knowledge") {
       const r = await fetch(`/api/v1/knowledge/search?q=${encodeURIComponent(q)}`);
       const j = await r.json();
-      html = renderKnowledge(j);
+      loading.innerHTML = renderKnowledge(j);
       renderInspect({ route: "rag", sources: (j.results||[]).map(x=>x.source) });
     } else {
-      const r = await fetch("/api/v1/chat", {
-        method: "POST", headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ question: q, mode })
-      });
-      const j = await r.json();
-      html = renderAgent(j);
-      renderInspect(j);
+      await streamChat(q, loading);
     }
-    loading.innerHTML = html;
-    // 渲染图表
-    loading.querySelectorAll("[data-chart]").forEach(el => {
-      try { echarts.init(el).setOption(JSON.parse(el.dataset.chart)); } catch(e){}
-    });
   } catch (e) {
-    loading.innerHTML = `<div class="answer" style="color:#b91c1c">请求失败：${e}</div>`;
+    loading.innerHTML = `<div class="answer" style="color:#b91c1c">请求失败，请稍后重试</div>`;
   }
   btn.disabled = false;
 }
 
+// SSE 流式对话：逐事件增量渲染气泡；答案走 answer_delta 逐块追加（打字机效果）
+async function streamChat(q, loading) {
+  const resp = { route: "", sql: "", columns: [], rows: [], chart: null, answer: "", sources: [], clarification: [] };
+  let answerEl = null;
+  const render = () => {
+    loading.innerHTML = renderAgent(resp);
+    loading.querySelectorAll("[data-chart]").forEach(el => {
+      try { echarts.init(el).setOption(JSON.parse(el.dataset.chart)); } catch(e){}
+    });
+    answerEl = loading.querySelector(".answer");
+    renderInspect(resp);
+  };
+  const r = await fetch("/api/v1/chat", {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ question: q, mode, dataset: document.getElementById("dataset").value }),
+    cache: "no-store",
+  });
+  if (!r.ok || !r.body) {
+    loading.innerHTML = `<div class="answer" style="color:#b91c1c">服务暂不可用（${r.status}）</div>`;
+    return;
+  }
+  const reader = r.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const blocks = buf.split("\n\n");
+    buf = blocks.pop();
+    for (const block of blocks) {
+      const line = block.split("\n").find(l => l.startsWith("data:"));
+      if (!line) continue;
+      let ev;
+      try { ev = JSON.parse(line.slice(5).trim()); } catch (e) { continue; }
+      if (ev.type === "route") { resp.route = ev.route; render(); }
+      else if (ev.type === "sql") { resp.sql = ev.sql; render(); }
+      else if (ev.type === "rows") { resp.columns = ev.columns || []; resp.rows = ev.rows || []; render(); }
+      else if (ev.type === "chart") { resp.chart = ev.chart; render(); }
+      else if (ev.type === "answer") { resp.answer = ev.text || ""; render(); }
+      else if (ev.type === "clarify") { resp.route = "clarify"; resp.answer = ev.message; resp.clarification = ev.options || []; render(); }
+      else if (ev.type === "answer_start") { resp.answer = ""; if (!answerEl) render(); else answerEl.textContent = ""; }
+      else if (ev.type === "answer_delta") {
+        resp.answer += ev.text || "";
+        if (!answerEl) render();
+        else answerEl.textContent = resp.answer;   // 仅更新文本，不重建图表，避免闪烁
+      }
+      else if (ev.type === "done") { Object.assign(resp, ev.response); renderInspect(resp); }
+      else if (ev.type === "error") {
+        loading.innerHTML = `<div class="answer" style="color:#b91c1c">${escapeHtml(ev.message || "服务内部错误，请稍后重试")}</div>`;
+        return;
+      }
+    }
+  }
+}
+
 function renderAgent(j) {
-  let h = `<div class="meta">${j.route} · ${j.elapsed_ms}ms</div>`;
+  let h = `<div class="meta">${j.route}${j.elapsed_ms ? " · " + j.elapsed_ms + "ms" : ""}</div>`;
+  if (j.clarification && j.clarification.length) {
+    _clarifyOpts = j.clarification;
+    h += `<div class="answer">${escapeHtml(j.answer||"")}</div>`;
+    h += `<div class="clarify-box">` + j.clarification.map((o,i)=>
+      `<span class="clarify-opt" onclick="chooseClarify(${i})">${escapeHtml(o.label)}</span>`).join("") + `</div>`;
+    return h;
+  }
   if (j.sql) h += `<div class="sqlbox">${escapeHtml(j.sql)}</div>`;
   if (j.chart && j.chart.option) h += `<div class="chart" data-chart='${escapeAttr(JSON.stringify(j.chart.option))}'></div>`;
+  if (j.chart && j.chart.reason) h += `<div class="chart-reason">选图理由：${escapeHtml(j.chart.reason)}</div>`;
   if (j.rows && j.rows.length) h += tableHtml(j.columns, j.rows.slice(0, 50));
   h += `<div class="answer">${escapeHtml(j.answer||"")}</div>`;
   if (j.sources && j.sources.length) h += j.sources.map(s=>`<div class="src">📄 ${escapeHtml(s)}</div>`).join("");
@@ -187,7 +259,14 @@ async function uploadData() {
   const fd = new FormData(); fd.append("file", f);
   const r = await fetch("/api/v1/data/upload", { method:"POST", body: fd });
   const j = await r.json();
-  alert(j.success ? `导入成功：${j.dataset.name}（${j.dataset.rows} 行）` : `失败：${j.message}`);
+  if (j.success) {
+    alert(`导入成功：${j.dataset.name}（${j.dataset.rows} 行）`);
+    await loadDatasetOptions();
+    document.getElementById("dataset").value = j.dataset.name;  // 上传后自动选中该表
+    refreshAlertControls();
+  } else {
+    alert(`失败：${j.message}`);
+  }
   loadDatasets();
 }
 async function uploadDoc() {
@@ -204,6 +283,18 @@ async function loadDatasets() {
   document.getElementById("dslist").innerHTML = (j||[]).map(d=>
     `<div class="ds-item"><span>${d.name} · ${d.rows}行</span><button onclick="delDs('${d.name}')">删除</button></div>`).join("") || "无数据集";
 }
+async function loadDatasetOptions() {
+  const sel = document.getElementById("dataset");
+  if (!sel) return;
+  try {
+    const r = await fetch("/api/v1/datasets");
+    const j = await r.json();
+    const names = (j || []).map(d => d.name);
+    sel.innerHTML = `<option value="">自动（全部表）</option>` +
+      names.map(n => `<option value="${escapeAttr(n)}">${escapeHtml(n)}</option>`).join("");
+  } catch (e) { /* 保持默认选项 */ }
+}
+
 async function delDs(n) {
   if (!confirm(`删除表 ${n}？`)) return;
   await fetch(`/api/v1/datasets/${n}`, { method:"DELETE" });
@@ -214,12 +305,69 @@ async function reindex() {
   const j = await r.json();
   alert(`已索引 ${j.indexed_docs} 篇文档`);
 }
-async function alertScan() {
-  const r = await fetch("/api/v1/alerts/scan", { method:"POST" });
+async function refreshAlertControls() {
+  const ds = document.getElementById("dataset").value;
+  if (!ds) { document.getElementById("monitoring").textContent = "—"; return; }
+  try {
+    const r = await fetch(`/api/v1/alerts/profile?dataset=${encodeURIComponent(ds)}`);
+    const j = await r.json();
+    if (!j.ok) { document.getElementById("monitoring").textContent = "不可用"; return; }
+    document.getElementById("monitoring").textContent =
+      j.monitoring + `（指标：${(j.metrics||[]).join("、")||"无"}）`;
+    const cur = document.getElementById("alertTimeCol").value;
+    document.getElementById("alertTimeCol").innerHTML =
+      `<option value="">时间列：自动</option>` +
+      (j.time_col ? `<option value="${escapeAttr(j.time_col)}">${escapeHtml(j.time_col)}</option>` : "");
+    document.getElementById("alertTimeCol").value = cur;
+  } catch (e) { /* 忽略 */ }
+}
+
+async function runAlert() {
+  const ds = document.getElementById("dataset").value;
+  const body = {
+    dataset: ds,
+    sensitivity: document.getElementById("alertSens").value,
+    time_col: document.getElementById("alertTimeCol").value || null,
+  };
+  const r = await fetch("/api/v1/alerts/scan", {
+    method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body),
+  });
   const j = await r.json();
-  let h = (j.attribution||[]).map(a=>`<div class="alert-box">${escapeHtml(a)}</div>`).join("");
-  h += `<div class="alert-box">建议：${escapeHtml(j.advice||"")}</div>`;
+  let h = "";
+  if (j.notes && j.notes.length) h += j.notes.map(n=>`<div class="alert-box">ℹ️ ${escapeHtml(n)}</div>`).join("");
+  const items = j.anomalies || [];
+  if (!items.length) {
+    h += `<div class="alert-box">✅ ${escapeHtml(j.advice||"暂未发现异常")}</div>`;
+  } else {
+    _drills = items.map(a => a.drill_question || "");
+    h += items.map((a, i) => {
+      const color = a.level === "P0" ? "#b91c1c" : a.level === "P1" ? "#b45309" : "#92400e";
+      return `<div class="alert-box" style="border-left:3px solid ${color}">
+        <b style="color:${color}">[${a.level}]</b> ${escapeHtml(a.dimension||"整体")} · ${escapeHtml(a.metric)}<br/>
+        ${escapeHtml(a.message)}<br/>
+        <span style="color:#6b7280">偏离：${escapeHtml(a.deviation)} · 模式：${escapeHtml(a.mode)} · 置信：${escapeHtml(a.confidence)}</span><br/>
+        <button onclick="drill(${i})">深入归因</button>
+      </div>`;
+    }).join("");
+    h += `<div class="alert-box">建议：${escapeHtml(j.advice||"")}</div>`;
+  }
   document.getElementById("alertout").innerHTML = h;
+}
+
+let _drills = [];
+function drill(i) {
+  const q = _drills[i];
+  if (!q) return;
+  document.getElementById("q").value = q;
+  send();
+}
+
+let _clarifyOpts = [];
+function chooseClarify(i) {
+  const o = _clarifyOpts[i];
+  if (!o) return;
+  document.getElementById("q").value = o.question;
+  send();
 }
 
 function escapeHtml(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
@@ -229,6 +377,8 @@ fetch("/api/v1/health").then(r=>r.json()).then(j=>{
   document.getElementById("status").textContent = `数据源:${j.data_source} · LLM:${j.llm_provider}${j.llm_configured?"(已配置)":"(Mock)"}`;
 });
 loadDatasets();
+loadDatasetOptions();
+refreshAlertControls();
 </script>
 </body>
 </html>

@@ -24,7 +24,7 @@ class WarehouseSource(DataSource):
     def list_tables(self) -> list[str]:
         raise NotImplementedError
 
-    def schema_text(self) -> str:
+    def schema_text(self, table: str = "") -> str:
         raise NotImplementedError
 
     def table_info(self, name: str) -> dict:
@@ -34,4 +34,7 @@ class WarehouseSource(DataSource):
         raise NotImplementedError
 
     def datasets(self) -> list[DatasetInfo]:
+        raise NotImplementedError
+
+    def read_table(self, name: str) -> pd.DataFrame:
         raise NotImplementedError

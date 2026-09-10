@@ -10,6 +10,10 @@ from ecommerce_ai.core.config import settings
 from ecommerce_ai.core.models import DatasetInfo
 from ecommerce_ai.data.source import get_data_source
 
+# 不同子目录允许的文件扩展名（白名单）
+_ALLOWED_DATA_EXT = {".csv", ".xlsx", ".xls"}
+_ALLOWED_DOC_EXT = {".pdf", ".docx", ".txt", ".md", ".csv"}
+
 _MAX_ROWS = 200_000
 
 
@@ -46,13 +50,35 @@ def ingest_structured_file(path: str | Path, table_name: str | None = None) -> D
     src = get_data_source()
     info = src.ingest_dataframe(df, name)
     print(f"[ingest] 已导入表 {name}（{info.rows} 行，{len(info.columns)} 列）")
+    # 存跨次对比快照（不影响上传主流程；失败自动忽略）
+    try:
+        from ecommerce_ai.alerting.snapshots import store_snapshot
+
+        store_snapshot(name, df)
+    except Exception as e:  # noqa: BLE001
+        print(f"[ingest] 预警快照存储失败(已忽略): {e}")
     return info
 
 
-def save_upload(content: bytes, filename: str) -> Path:
-    """把上传内容存到 upload_dir，返回路径。"""
-    upload_dir = settings.abs(settings.upload_dir)
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    p = upload_dir / filename
+def save_upload(content: bytes, filename: str, subdir: str = "") -> Path:
+    """把上传内容存到 upload_dir（可指定子目录如 docs），返回路径。
+
+    安全：只取客户端文件名的 basename 防路径穿越；按子目录做扩展名白名单。
+    """
+    base = settings.abs(settings.upload_dir)
+    if subdir:
+        base = base / subdir
+    base.mkdir(parents=True, exist_ok=True)
+    if not filename:
+        raise ValueError("文件名不能为空")
+    # 防路径穿越：丢弃任何目录成分，只保留最后一段
+    name = Path(filename).name
+    if not name:
+        raise ValueError("文件名不合法")
+    ext = Path(name).suffix.lower()
+    allowed = _ALLOWED_DOC_EXT if subdir == "docs" else _ALLOWED_DATA_EXT
+    if ext not in allowed:
+        raise ValueError(f"不支持的文件类型: {ext}")
+    p = base / name
     p.write_bytes(content)
     return p

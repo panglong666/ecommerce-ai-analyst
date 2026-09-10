@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, UploadFile, File
 
+from ecommerce_ai.core.config import settings
 from ecommerce_ai.data.ingest import save_upload
 from ecommerce_ai.rag.indexer import index_default_docs, index_file
 from ecommerce_ai.tools.rag_tool import search_knowledge
@@ -18,7 +19,7 @@ def search(q: str, top_k: int = 5) -> dict:
 @router.post("/knowledge/upload")
 async def upload_doc(file: UploadFile = File(...)) -> dict:
     content = await file.read()
-    path = save_upload(content, file.filename or "doc.txt")
+    path = save_upload(content, file.filename or "doc.txt", subdir=settings.docs_subdir)
     info = index_file(path, source_name=file.filename)
     return {"success": True, "source": info["source"], "chunks": info["chunks"]}
 

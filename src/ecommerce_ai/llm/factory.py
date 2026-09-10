@@ -34,6 +34,9 @@ class MockLLM:
             return MockLLM._MOCK_SQL
         if "结论" in prompt or "建议" in prompt or "解读" in prompt:
             return "（Mock）华东区羽绒服上月销售额 ¥1,280 万，同比 +23.5%，跑赢大盘；建议加大华东仓备货。"
+        if "图表" in prompt or "chart" in low or "可视化" in prompt or "选型" in prompt:
+            # 故意返回字段不匹配真实列的 JSON，让护栏校验失败并回退规则版，保证不崩
+            return '{"chart_type":"bar","x_field":"_mock","y_fields":["_mock"],"title":"(Mock)","reason":"Mock 默认柱状图"}'
         return "（Mock 模式）未配置 DEEPSEEK_API_KEY，这是示例回复。配置 Key 后即可调用真实大模型。"
 
 

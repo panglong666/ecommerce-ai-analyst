@@ -39,8 +39,8 @@ def index_file(path: str | Path, source_name: str | None = None) -> dict:
 
 
 def index_default_docs() -> int:
-    """索引 data/uploads/docs/ 下的示例文档。"""
-    docs_dir = settings.abs(settings.upload_dir) / "docs"
+    """索引 settings.docs_subdir 下的示例文档。"""
+    docs_dir = settings.abs(settings.upload_dir) / settings.docs_subdir
     if not docs_dir.exists():
         return 0
     n = 0
