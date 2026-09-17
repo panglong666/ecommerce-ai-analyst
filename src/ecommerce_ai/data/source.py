@@ -50,13 +50,14 @@ class DataSource(ABC):
     )
 
     def validate_sql(self, sql: str) -> str | None:
-        """只允许只读 SELECT（含 WITH 公共表表达式）；返回错误信息或 None。
+        """只允许只读查询（含 WITH 公共表表达式、UNION/INTERSECT/EXCEPT 集合运算）；返回错误信息或 None。
 
         基于 sqlglot 做 AST 白名单解析，杜绝关键词黑名单的各类绕过：
         - 多语句（分号拼接）：parse 返回多条语句，直接拒绝
         - 注释混淆（SEL/**/ECT）、大小写变形：AST 解析天然免疫
         - 递归 CTE：可能制造无限循环（DoS），明确拒绝
         - 任意写 / DDL / DML 子句：AST 遍历兜底拦截
+        - 集合运算（UNION/INTERSECT/EXCEPT）：属只读，放行；各分支仍受写节点兜底约束
         """
         s = (sql or "").strip()
         if not s:
@@ -68,8 +69,8 @@ class DataSource(ABC):
         if len(statements) != 1:
             return "仅允许单条查询语句"
         stmt = statements[0]
-        if not isinstance(stmt, exp.Select):
-            return "仅允许 SELECT 或 WITH...SELECT 只读查询"
+        if not isinstance(stmt, (exp.Select, exp.SetOperation)):
+            return "仅允许 SELECT / WITH...SELECT / UNION 等只读查询"
         # 递归 CTE 可能无限循环（DoS），禁止：
         # 1) WITH 节点显式带 recursive 标志；2) 某个 CTE 被自身引用（自引用）
         with_nodes = [n for n in stmt.walk() if isinstance(n, exp.With)]
@@ -95,7 +96,7 @@ class DataSource(ABC):
             parsed = sqlglot.parse_one(sql, read="sqlite")
         except Exception:
             return sql
-        if not isinstance(parsed, exp.Select):
+        if not isinstance(parsed, (exp.Select, exp.SetOperation)):
             return sql
         if parsed.args.get("limit") is not None:
             return sql  # 已有 LIMIT，原样返回
