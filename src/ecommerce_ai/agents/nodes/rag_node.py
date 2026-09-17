@@ -7,7 +7,7 @@ from ecommerce_ai.tools.rag_tool import search_knowledge
 
 
 def rag_node(state: AgentState) -> AgentState:
-    docs = search_knowledge(state["question"])
+    docs = search_knowledge(state["question"], domain=state.get("domain", ""))
     context = "\n---\n".join(f"[{d.get('source', '')}] {d.get('text', '')}" for d in docs) or "（知识库暂无相关内容）"
     prompt = render_prompt(load_prompt("rag"), context=context, question=state["question"])
     answer = chat(prompt)

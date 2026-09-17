@@ -57,7 +57,7 @@ def get_graph():
     return _compiled
 
 
-def run(question: str, dataset: str = "", mode: str = "auto") -> AgentResponse:
+def run(question: str, dataset: str = "", mode: str = "auto", domain: str = "") -> AgentResponse:
     """对外统一入口：输入问题，返回结构化响应。dataset 指定时只分析该表。
 
     反问优先：分析类问题先判定分组意图是否歧义，歧义则直接返回选项交用户确认，
@@ -78,7 +78,7 @@ def run(question: str, dataset: str = "", mode: str = "auto") -> AgentResponse:
                 clarification=clarify["options"],
                 elapsed_ms=int((time.time() - t0) * 1000),
             )
-    out = get_graph().invoke({"question": question, "dataset": dataset})
+    out = get_graph().invoke({"question": question, "dataset": dataset, "domain": domain})
     elapsed = int((time.time() - t0) * 1000)
     chart = out.get("chart")
     return AgentResponse(
@@ -94,7 +94,7 @@ def run(question: str, dataset: str = "", mode: str = "auto") -> AgentResponse:
     )
 
 
-async def stream_run(question: str, dataset: str = "", mode: str = "auto"):
+async def stream_run(question: str, dataset: str = "", mode: str = "auto", domain: str = ""):
     """对话流式入口：逐节点产出 SSE 事件（route/sql/rows/chart/answer/done）。
 
     与 run() 共享反问前置逻辑；graph 用 astream 按节点推进，前端可增量渲染。
@@ -120,7 +120,7 @@ async def stream_run(question: str, dataset: str = "", mode: str = "auto"):
         "answer": "",
         "sources": [],
     }
-    async for chunk in get_graph().astream({"question": question, "dataset": dataset}):
+    async for chunk in get_graph().astream({"question": question, "dataset": dataset, "domain": domain}):
         for node, update in chunk.items():
             if not isinstance(update, dict):
                 continue

@@ -25,7 +25,7 @@ async def chat(req: ChatRequest) -> StreamingResponse:
 
     async def event_gen():
         try:
-            async for ev in stream_run(req.question, dataset=req.dataset, mode=req.mode):
+            async for ev in stream_run(req.question, dataset=req.dataset, mode=req.mode, domain=req.domain):
                 yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
         except Exception as e:  # noqa: BLE001
             logger.exception("chat stream failed: %s", e)

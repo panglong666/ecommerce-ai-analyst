@@ -8,6 +8,7 @@ class ChatRequest(BaseModel):
     question: str
     mode: str = "auto"  # auto / analysis / knowledge
     dataset: str = ""   # 空=全部表(demo)；指定表名=只分析该表
+    domain: str = ""    # 知识域（RAG 检索范围），空=全库；如 bandao / apparel
 
 
 class UploadResponse(BaseModel):

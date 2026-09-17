@@ -1,4 +1,8 @@
-"""混合检索：BM25（字符级，免 jieba）+ 向量相似，融合后取 top_k。"""
+"""混合检索：BM25（字符级，免 jieba）+ 向量相似，融合后取 top_k。
+
+支持按知识域（domain）限定检索范围，避免不相关业务域的文档混入；
+并对「同一文档贡献的片段数」设上限，防止长文档霸占 top_k（多产品混检时尤为重要）。
+"""
 from __future__ import annotations
 
 from typing import Any
@@ -7,32 +11,39 @@ from rank_bm25 import BM25Okapi
 
 from ecommerce_ai.core.config import settings
 
-_corpus_cache: dict[str, list] | None = None
+# 按 domain 缓存语料；"" / None 表示全库
+_corpus_cache: dict[str, dict] = {}
+# 同一文档最多贡献的片段数，保证检索结果的多样性
+_MAX_PER_SOURCE = 2
 
 
-def _load_corpus() -> dict[str, list]:
-    global _corpus_cache
-    if _corpus_cache is not None:
-        return _corpus_cache
+def _load_corpus(domain: str = "") -> dict[str, list]:
+    key = domain or "__all__"
+    if key in _corpus_cache:
+        return _corpus_cache[key]
     from ecommerce_ai.rag.vectorstore import get_vectorstore
 
-    data = get_vectorstore().get(include=["documents", "metadatas"])
-    _corpus_cache = {
+    store = get_vectorstore()
+    if domain:
+        data = store.get(where={"domain": domain}, include=["documents", "metadatas"])
+    else:
+        data = store.get(include=["documents", "metadatas"])
+    _corpus_cache[key] = {
         "ids": list(data.get("ids", [])),
         "texts": list(data.get("documents", [])),
         "metas": list(data.get("metadatas", [])),
     }
-    return _corpus_cache
+    return _corpus_cache[key]
 
 
 def reset_corpus_cache() -> None:
     global _corpus_cache
-    _corpus_cache = None
+    _corpus_cache = {}
 
 
-def retrieve(query: str, top_k: int | None = None) -> list[dict[str, Any]]:
+def retrieve(query: str, top_k: int | None = None, domain: str = "") -> list[dict[str, Any]]:
     k = top_k or settings.top_k
-    corpus = _load_corpus()
+    corpus = _load_corpus(domain)
     if not corpus["texts"]:
         return []
 
@@ -48,11 +59,12 @@ def retrieve(query: str, top_k: int | None = None) -> list[dict[str, Any]]:
         meta = corpus["metas"][i] or {}
         combined[t] = {"text": t, "source": meta.get("source", ""), "score": float(bm_scores[i])}
 
-    # 向量召回
+    # 向量召回（同一域内）
     try:
         from ecommerce_ai.rag.vectorstore import get_vectorstore
 
-        vec = get_vectorstore().similarity_search_with_relevance_scores(query, k=k * 2)
+        kwargs = {"filter": {"domain": domain}} if domain else {}
+        vec = get_vectorstore().similarity_search_with_relevance_scores(query, k=k * 2, **kwargs)
         for doc, sc in vec:
             t = doc.page_content
             if t in combined:
@@ -62,5 +74,16 @@ def retrieve(query: str, top_k: int | None = None) -> list[dict[str, Any]]:
     except Exception as e:  # noqa: BLE001
         print(f"[rag] 向量召回失败，仅用 BM25: {e}")
 
-    ranked = sorted(combined.values(), key=lambda x: x["score"], reverse=True)[:k]
-    return ranked
+    ranked = sorted(combined.values(), key=lambda x: x["score"], reverse=True)
+    # 多样性控制：同一文档最多 _MAX_PER_SOURCE 块
+    out: list[dict[str, Any]] = []
+    per_source: dict[str, int] = {}
+    for r in ranked:
+        s = r.get("source", "")
+        if per_source.get(s, 0) >= _MAX_PER_SOURCE:
+            continue
+        per_source[s] = per_source.get(s, 0) + 1
+        out.append(r)
+        if len(out) >= k:
+            break
+    return out

@@ -12,19 +12,22 @@ router = APIRouter(prefix="/api/v1")
 
 
 @router.get("/knowledge/search")
-def search(q: str, top_k: int = 5) -> dict:
-    return {"query": q, "results": search_knowledge(q, top_k)}
+def search(q: str, top_k: int = 5, domain: str = "") -> dict:
+    """知识库检索。domain 为空=全库；bandao=半岛产品；apparel=电商示例。"""
+    return {"query": q, "domain": domain, "results": search_knowledge(q, top_k, domain=domain)}
 
 
 @router.post("/knowledge/upload")
-async def upload_doc(file: UploadFile = File(...)) -> dict:
+async def upload_doc(file: UploadFile = File(...), domain: str = "") -> dict:
+    """上传并索引文档。domain 留空时按文件名自动推断（含「半岛」→ bandao）。"""
     content = await file.read()
     path = save_upload(content, file.filename or "doc.txt", subdir=settings.docs_subdir)
-    info = index_file(path, source_name=file.filename)
-    return {"success": True, "source": info["source"], "chunks": info["chunks"]}
+    info = index_file(path, source_name=file.filename, domain=domain or None)
+    return {"success": True, "source": info["source"], "chunks": info["chunks"], "domain": info["domain"]}
 
 
 @router.post("/knowledge/reindex")
-def reindex() -> dict:
-    n = index_default_docs()
+def reindex(domain: str = "") -> dict:
+    """按 docs 目录重建索引。domain 留空时每个文档按文件名自动推断归属。"""
+    n = index_default_docs(domain=domain or None)
     return {"indexed_docs": n}

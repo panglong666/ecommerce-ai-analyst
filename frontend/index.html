@@ -6,63 +6,116 @@
 <title>电商数据分析 AI 助手</title>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif; background: #f5f6f8; color: #1f2329; height: 100vh; display: flex; flex-direction: column; }
-  header { background: #ffffff; border-bottom: 1px solid #e5e7eb; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
-  header h1 { font-size: 16px; font-weight: 500; }
-  .modes button { border: 1px solid #d1d5db; background: #fff; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-left: 6px; }
-  .modes button.active { background: #185fa5; color: #fff; border-color: #185fa5; }
-  .status { font-size: 12px; color: #6b7280; }
-  main { flex: 1; display: flex; overflow: hidden; }
-  .chat { flex: 2; display: flex; flex-direction: column; border-right: 1px solid #e5e7eb; background: #fff; }
-  .msgs { flex: 1; overflow-y: auto; padding: 18px; }
-  .msg { margin-bottom: 16px; }
-  .msg.user { text-align: right; }
-  .msg.user .bubble { display: inline-block; background: #185fa5; color: #fff; padding: 8px 12px; border-radius: 12px 12px 2px 12px; max-width: 80%; text-align: left; }
-  .msg.ai .bubble { background: #f7f8fa; border: 1px solid #eef0f3; padding: 12px 14px; border-radius: 12px; max-width: 92%; }
-  .bubble .meta { font-size: 12px; color: #6b7280; margin-bottom: 6px; }
-  .bubble .answer { line-height: 1.6; font-size: 14px; white-space: pre-wrap; }
-  .chart { width: 100%; height: 260px; margin: 10px 0; }
-  .sqlbox { background: #0c447c; color: #e6f1fb; padding: 8px 10px; border-radius: 6px; font-family: Consolas, monospace; font-size: 12px; margin: 8px 0; white-space: pre-wrap; }
-  .chart-reason { font-size: 12px; color: #475467; background: #f0f7ff; border-left: 3px solid #185fa5; padding: 4px 8px; margin: 2px 0 8px; }
-  .src { font-size: 12px; color: #475467; background: #ede9fe; padding: 4px 8px; border-radius: 4px; margin: 3px 0; }
-  .result-table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0; }
-  .result-table th, .result-table td { border: 1px solid #e5e7eb; padding: 4px 8px; text-align: left; }
-  .result-table th { background: #f3f4f6; }
-  .chips { padding: 8px 18px; border-top: 1px solid #eef0f3; }
-  .chips span { display: inline-block; background: #eaf2ff; color: #0c447c; padding: 4px 10px; border-radius: 14px; font-size: 12px; margin-right: 6px; cursor: pointer; }
-  .input-row { display: flex; padding: 12px 18px; border-top: 1px solid #e5e7eb; }
-  .input-row input { flex: 1; border: 1px solid #d1d5db; border-radius: 8px; padding: 10px 12px; font-size: 14px; }
-  .input-row button { margin-left: 10px; background: #185fa5; color: #fff; border: none; border-radius: 8px; padding: 0 20px; cursor: pointer; font-size: 14px; }
-  .input-row button:disabled { background: #9ca3af; }
-  .sidebar { flex: 1; overflow-y: auto; background: #fbfbfc; padding: 16px; }
-  .panel { background: #fff; border: 1px solid #eef0f3; border-radius: 10px; padding: 12px; margin-bottom: 14px; }
-  .panel h3 { font-size: 13px; font-weight: 500; margin-bottom: 8px; color: #1f2329; }
-  .panel button { border: 1px solid #d1d5db; background: #fff; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; margin: 3px 3px 3px 0; }
-  .panel button.primary { background: #185fa5; color: #fff; border-color: #185fa5; }
-  .ds-item { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 5px 0; border-bottom: 1px dashed #eef0f3; }
-  .ds-item button { color: #b91c1c; }
-  .alert-box { font-size: 12px; color: #92400e; background: #faeeda; padding: 8px; border-radius: 6px; margin: 4px 0; }
-  .loading { color: #6b7280; font-size: 13px; }
-  .clarify-box { margin: 8px 0; }
-  .clarify-opt { display: inline-block; background: #eaf2ff; color: #0c447c; padding: 7px 13px; border-radius: 16px; font-size: 13px; margin: 5px 7px 0 0; cursor: pointer; border: 1px solid #cfe0f7; }
-  .clarify-opt:hover { background: #d8e8ff; }
+:root{
+  --brand:#185FA5; --brand-dark:#0C447C; --brand-soft:#E6F1FB; --brand-pill:#EAF2FF;
+  --bg:#F5F6F8; --surface:#FFFFFF; --border:#E5E7EB; --border-soft:#EEF0F3;
+  --text:#1F2329; --text-2:#6B7280; --text-3:#9CA3AF;
+  --ok:#3B6D11; --warn:#92400E; --danger:#A32D2D;
+  --r:12px; --r-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI","Microsoft YaHei",Arial,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;font-size:14px}
+
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;height:60px;display:flex;align-items:center;gap:12px;flex:none}
+.logo{width:30px;height:30px;border-radius:9px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex:none}
+.brand{font-size:15px;font-weight:600;line-height:1.2}
+.brand small{display:block;font-size:11px;color:var(--text-2);font-weight:400}
+.seg{margin-left:auto;display:flex;background:#F1F3F6;border-radius:9px;padding:3px}
+.seg button{border:none;background:transparent;padding:6px 14px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--text-2);font-family:inherit;transition:.15s}
+.seg button.active{background:var(--surface);color:var(--brand);font-weight:600}
+.badge{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2);background:#F7F8FA;border:1px solid var(--border-soft);padding:5px 11px;border-radius:20px;white-space:nowrap}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--text-3);flex:none}
+.badge.ok .dot{background:var(--ok)}
+.badge.err .dot{background:var(--danger)}
+
+main{flex:1;display:flex;overflow:hidden}
+.chat{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--surface);border-right:1px solid var(--border)}
+.msgs{flex:1;overflow-y:auto;padding:20px 24px}
+.msg{margin-bottom:18px;display:flex;gap:10px}
+.msg.user{flex-direction:row-reverse}
+.avatar{width:28px;height:28px;border-radius:8px;background:var(--brand-soft);color:var(--brand);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex:none}
+.msg.user .avatar{background:var(--brand);color:#fff}
+.bubble{max-width:80%;background:#F7F8FA;border:1px solid var(--border-soft);padding:12px 14px;border-radius:14px;border-top-left-radius:4px}
+.msg.user .bubble{background:var(--brand);color:#fff;border-color:var(--brand);border-radius:14px;border-top-right-radius:4px;padding:9px 13px}
+.bubble .meta{font-size:12px;color:var(--text-2);margin-bottom:7px}
+.msg.user .bubble .meta{display:none}
+.bubble .answer{line-height:1.65;font-size:14px;white-space:pre-wrap}
+.chart{width:100%;height:270px;margin:10px 0}
+.chart-reason{font-size:12px;color:#475467;background:#F0F7FF;border-left:3px solid var(--brand);padding:6px 10px;border-radius:0 6px 6px 0;margin:6px 0 10px}
+.src{font-size:12px;color:#4C3FA8;background:#F1EEFC;padding:5px 10px;border-radius:6px;margin:4px 0}
+.result-table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0}
+.result-table th,.result-table td{border:1px solid var(--border);padding:5px 9px;text-align:left}
+.result-table th{background:#F3F4F6;font-weight:600}
+details.sqlbox{margin:8px 0}
+details.sqlbox summary{cursor:pointer;font-size:12px;color:var(--text-2);background:#F7F8FA;border:1px solid var(--border-soft);padding:6px 11px;border-radius:7px;list-style:none;user-select:none}
+details.sqlbox summary::-webkit-details-marker{display:none}
+details.sqlbox summary:before{content:"\25B8 ";color:var(--brand)}
+details.sqlbox[open] summary:before{content:"\25BE "}
+details.sqlbox pre{background:var(--brand-dark);color:#E6F1FB;padding:10px 12px;border-radius:0 0 7px 7px;font-family:Consolas,monospace;font-size:12px;white-space:pre-wrap;word-break:break-all;margin-top:-1px}
+
+.chips{padding:10px 24px;border-top:1px solid var(--border-soft);background:#FCFCFD}
+.chips span{display:inline-block;background:var(--brand-pill);color:var(--brand-dark);padding:5px 12px;border-radius:16px;font-size:12px;margin:0 6px 6px 0;cursor:pointer;border:1px solid #D7E6FA;transition:.15s}
+.chips span:hover{background:var(--brand-soft);border-color:var(--brand)}
+.input-row{display:flex;gap:8px;padding:14px 24px 18px;border-top:1px solid var(--border-soft)}
+.field{border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;background:var(--surface);font-family:inherit;color:var(--text);outline:none}
+.field:focus{border-color:var(--brand)}
+#dataset{max-width:190px;cursor:pointer}
+#q{flex:1}
+.btn{background:var(--brand);color:#fff;border:none;border-radius:10px;padding:0 22px;cursor:pointer;font-size:14px;font-family:inherit;transition:.15s}
+.btn:hover{background:var(--brand-dark)}
+.btn:disabled{background:var(--text-3);cursor:default}
+
+.sidebar{width:360px;flex:none;overflow-y:auto;background:#FBFCFD;padding:16px}
+.panel{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--r);padding:14px;margin-bottom:14px}
+.panel h3{font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text)}
+.tabs{display:flex;gap:16px;border-bottom:1px solid var(--border);margin-bottom:14px}
+.tab{border:none;background:none;padding:8px 2px;font-size:13px;color:var(--text-2);cursor:pointer;font-family:inherit;position:relative}
+.tab.active{color:var(--brand);font-weight:600}
+.tab.active:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--brand);border-radius:2px}
+.tabpane[hidden]{display:none}
+.up{display:inline-block;border:1px dashed var(--border);border-radius:9px;padding:7px 12px;font-size:12px;color:var(--text-2);cursor:pointer;background:#FCFCFD}
+.up:hover{border-color:var(--brand);color:var(--brand)}
+.fname{font-size:12px;color:var(--text-3);margin-left:8px}
+.btn-sm{border:1px solid var(--border);background:var(--surface);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;color:var(--text-2);margin:4px 6px 4px 0}
+.btn-sm.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+.btn-sm.primary:hover{background:var(--brand-dark)}
+.ds-item{display:flex;align-items:center;gap:8px;font-size:13px;padding:8px 6px;border-bottom:1px dashed var(--border-soft);border-radius:7px}
+.ds-item:last-child{border-bottom:none}
+.ds-item:hover{background:#F7F9FC}
+.ds-ic{width:20px;height:20px;border-radius:6px;background:var(--brand-soft);display:flex;align-items:center;justify-content:center;flex:none}
+.ds-rows{margin-left:auto;background:#F1EFE8;color:#5F5E5A;border-radius:10px;padding:1px 8px;font-size:11px}
+.ds-del{border:none;background:none;color:var(--danger);font-size:12px;cursor:pointer;font-family:inherit;opacity:0;transition:.15s}
+.ds-item:hover .ds-del{opacity:1}
+.empty{font-size:12px;color:var(--text-3);padding:14px 8px;text-align:center;line-height:1.7}
+.alert-box{font-size:12px;color:var(--warn);background:#FAEEDA;padding:9px 11px;border-radius:8px;margin:6px 0;line-height:1.6}
+.alert-box button{border:1px solid #EF9F27;background:#fff;color:var(--warn);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;margin-top:6px;font-family:inherit}
+.clarify-box{margin:8px 0}
+.clarify-opt{display:inline-block;background:var(--brand-pill);color:var(--brand-dark);padding:7px 14px;border-radius:18px;font-size:13px;margin:5px 8px 0 0;cursor:pointer;border:1px solid #CFE0F7}
+.clarify-opt:hover{background:var(--brand-soft)}
+.hint{font-size:12px;color:var(--text-2);margin-bottom:8px}
+select.field{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M1 1l4 4 4-4' fill='none' stroke='%236B7280' stroke-width='1.5'/></svg>");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+
+.sk-wrap{display:flex;flex-direction:column;gap:8px;padding:4px 0}
+.sk{height:12px;border-radius:6px;background:#EEF0F3;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@media (max-width:900px){.sidebar{width:300px}}
 </style>
 </head>
 <body>
 <header>
-  <h1>电商数据分析 AI 助手</h1>
-  <div class="modes">
+  <div class="logo">AI</div>
+  <div class="brand">电商数据分析 AI 助手<small>自然语言问数 · 知识库问答</small></div>
+  <div class="seg">
     <button class="active" data-mode="auto">自动</button>
     <button data-mode="analysis">分析</button>
     <button data-mode="knowledge">知识库</button>
-    <span class="status" id="status">加载中...</span>
   </div>
+  <div class="badge" id="status"><span class="dot"></span><span id="status-text">正在连接后端…</span></div>
 </header>
 <main>
   <div class="chat">
     <div class="msgs" id="msgs">
-      <div class="msg ai"><div class="bubble"><div class="answer">你好！我是电商数据分析助手。试试问我「上个月华东区羽绒服的销售额和同比怎么样？」，或切换到知识库问售后政策。</div></div></div>
+      <div class="msg"><div class="avatar">AI</div><div class="bubble"><div class="answer">你好！我是电商数据分析助手。试试问我「上个月华东区羽绒服的销售额和同比怎么样？」，或切换到知识库问售后政策。</div></div></div>
     </div>
     <div class="chips">
       <span onclick="fill('上个月华东区羽绒服的销售额和同比怎么样？')">华东羽绒服销售额</span>
@@ -71,93 +124,124 @@
       <span onclick="fill('七天无理由退货怎么操作？')">退货政策</span>
     </div>
     <div class="input-row">
-      <select id="dataset" title="选择分析的数据集" onchange="refreshAlertControls()" style="max-width:190px;margin-right:10px;border:1px solid #d1d5db;border-radius:8px;padding:10px 8px;font-size:13px;background:#fff;">
+      <select class="field" id="dataset" title="选择分析的数据集" onchange="refreshAlertControls()">
         <option value="">自动（全部表）</option>
       </select>
-      <input id="q" placeholder="输入你的问题..." onkeydown="if(event.key==='Enter')send()" />
-      <button id="sendbtn" onclick="send()">发送</button>
+      <input class="field" id="q" placeholder="输入你的问题..." onkeydown="if(event.key==='Enter')send()" />
+      <button class="btn" id="sendbtn" onclick="send()">发送</button>
     </div>
   </div>
   <div class="sidebar">
-    <div class="panel">
-      <h3>本次执行</h3>
-      <div id="inspect" class="loading">尚无执行</div>
+    <div class="tabs">
+      <button class="tab active" data-tab="data">数据管理</button>
+      <button class="tab" data-tab="exec">执行详情</button>
+      <button class="tab" data-tab="alert">智能预警</button>
     </div>
-    <div class="panel">
-      <h3>数据管理</h3>
-      <div>上传结构化数据（CSV/Excel）：</div>
-      <input type="file" id="csvfile" accept=".csv,.xlsx,.xls" />
-      <button class="primary" onclick="uploadData()">上传并导入</button>
-      <hr style="margin:8px 0;border:none;border-top:1px solid #eef0f3" />
-      <div>上传知识文档（PDF/Word/TXT）：</div>
-      <input type="file" id="docfile" accept=".txt,.md,.csv,.pdf,.docx" />
-      <button class="primary" onclick="uploadDoc()">上传并索引</button>
-      <hr style="margin:8px 0;border:none;border-top:1px solid #eef0f3" />
-      <button onclick="loadDatasets()">刷新数据集</button>
-      <button onclick="reindex()">重建知识索引</button>
-      <hr style="margin:8px 0;border:none;border-top:1px solid #eef0f3" />
-      <div style="font-size:12px;color:#475467;margin-bottom:4px">智能预警（自适应）</div>
-      <div style="font-size:12px;margin-bottom:6px">监测模式：<b id="monitoring">—</b></div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
-        <select id="alertTimeCol" title="时间列（留空=自动识别）" style="border:1px solid #d1d5db;border-radius:6px;padding:4px 6px;font-size:12px;">
-          <option value="">时间列：自动</option>
-        </select>
-        <select id="alertSens" title="灵敏度" style="border:1px solid #d1d5db;border-radius:6px;padding:4px 6px;font-size:12px;">
-          <option value="conservative">保守</option>
-          <option value="standard" selected>标准</option>
-          <option value="sensitive">高灵敏</option>
-        </select>
+
+    <div class="tabpane" id="pane-data">
+      <div class="panel">
+        <h3>上传结构化数据</h3>
+        <label class="up"><input type="file" id="csvfile" accept=".csv,.xlsx,.xls" hidden onchange="showName('csv')"><span>选择 CSV / Excel</span></label>
+        <span class="fname" id="csvname">未选择文件</span>
+        <div style="margin-top:8px"><button class="btn-sm primary" onclick="uploadData()">导入数据</button></div>
       </div>
-      <button class="primary" onclick="runAlert()">扫描预警</button>
-      <div id="dslist" style="margin-top:8px"></div>
-      <div id="alertout"></div>
+      <div class="panel">
+        <h3>上传知识文档</h3>
+        <label class="up"><input type="file" id="docfile" accept=".txt,.md,.csv,.pdf,.docx" hidden onchange="showName('doc')"><span>选择 PDF / Word / TXT</span></label>
+        <span class="fname" id="docname">未选择文件</span>
+        <div style="margin-top:8px"><button class="btn-sm primary" onclick="uploadDoc()">索引文档</button></div>
+      </div>
+      <div class="panel">
+        <h3>数据集</h3>
+        <div id="dslist"><div class="empty">加载中…</div></div>
+        <div style="margin-top:10px"><button class="btn-sm" onclick="loadDatasets()">刷新数据集</button><button class="btn-sm" onclick="reindex()">重建知识索引</button></div>
+      </div>
+      <div class="panel">
+        <h3>知识库检索范围</h3>
+        <select class="field" id="kbScope" style="width:100%;padding:7px 9px;font-size:12px">
+          <option value="">全部（不隔离）</option>
+          <option value="bandao">半岛医疗产品</option>
+          <option value="apparel">电商示例语料</option>
+        </select>
+        <div class="hint" style="margin:8px 0 0">限定范围可避免不相关文档混入答案</div>
+      </div>
+    </div>
+
+    <div class="tabpane" id="pane-exec" hidden>
+      <div class="panel">
+        <h3>本次执行</h3>
+        <div id="inspect"><div class="empty">尚无执行</div></div>
+      </div>
+    </div>
+
+    <div class="tabpane" id="pane-alert" hidden>
+      <div class="panel">
+        <h3>智能预警（自适应）</h3>
+        <div class="hint">扫描对象：<b id="alertTarget">—</b><br>监测模式：<b id="monitoring">—</b></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+          <select class="field" id="alertTimeCol" title="时间列（留空=自动识别）" style="padding:6px 8px;font-size:12px"><option value="">时间列：自动</option></select>
+          <select class="field" id="alertSens" title="灵敏度" style="padding:6px 8px;font-size:12px">
+            <option value="conservative">保守</option>
+            <option value="standard" selected>标准</option>
+            <option value="sensitive">高灵敏</option>
+          </select>
+        </div>
+        <button class="btn-sm primary" onclick="runAlert()">扫描预警</button>
+        <div id="alertout"></div>
+      </div>
     </div>
   </div>
 </main>
 
 <script>
 let mode = "auto";
-document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
-  document.querySelectorAll(".modes button").forEach(x => x.classList.remove("active"));
+document.querySelectorAll(".seg button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".seg button").forEach(x => x.classList.remove("active"));
   b.classList.add("active");
   mode = b.dataset.mode;
 });
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+  t.classList.add("active");
+  ["data","exec","alert"].forEach(p => { document.getElementById("pane-"+p).hidden = (p !== t.dataset.tab); });
+});
 
 function fill(t) { document.getElementById("q").value = t; }
-
+function showName(kind) {
+  const f = document.getElementById(kind + "file").files[0];
+  document.getElementById(kind + "name").textContent = f ? f.name : "未选择文件";
+}
+function setStatus(text, ok) {
+  const b = document.getElementById("status");
+  b.className = "badge" + (ok === true ? " ok" : ok === false ? " err" : "");
+  document.getElementById("status-text").textContent = text;
+}
 function addMsg(cls, html) {
   const d = document.createElement("div");
   d.className = "msg " + cls;
-  d.innerHTML = `<div class="bubble">${html}</div>`;
+  d.innerHTML = cls === "ai"
+    ? `<div class="avatar">AI</div><div class="bubble">${html}</div>`
+    : `<div class="bubble">${html}</div><div class="avatar">我</div>`;
   document.getElementById("msgs").appendChild(d);
   document.getElementById("msgs").scrollTop = 1e9;
-  return d;
+  return d.querySelector(".bubble");
 }
 
 async function send() {
   const q = document.getElementById("q").value.trim();
   if (!q) return;
-  addMsg("user", q);
+  addMsg("user", escapeHtml(q));
   document.getElementById("q").value = "";
   const btn = document.getElementById("sendbtn"); btn.disabled = true;
-  const loading = addMsg("ai", `<div class="loading">思考中...</div>`);
-
+  const loading = addMsg("ai", `<div class="sk-wrap"><div class="sk" style="width:55%"></div><div class="sk" style="width:88%"></div><div class="sk" style="width:70%"></div></div>`);
   try {
-    if (mode === "knowledge") {
-      const r = await fetch(`/api/v1/knowledge/search?q=${encodeURIComponent(q)}`);
-      const j = await r.json();
-      loading.innerHTML = renderKnowledge(j);
-      renderInspect({ route: "rag", sources: (j.results||[]).map(x=>x.source) });
-    } else {
-      await streamChat(q, loading);
-    }
+    await streamChat(q, loading);
   } catch (e) {
     loading.innerHTML = `<div class="answer" style="color:#b91c1c">请求失败，请稍后重试</div>`;
   }
   btn.disabled = false;
 }
 
-// SSE 流式对话：逐事件增量渲染气泡；答案走 answer_delta 逐块追加（打字机效果）
 async function streamChat(q, loading) {
   const resp = { route: "", sql: "", columns: [], rows: [], chart: null, answer: "", sources: [], clarification: [] };
   let answerEl = null;
@@ -171,7 +255,8 @@ async function streamChat(q, loading) {
   };
   const r = await fetch("/api/v1/chat", {
     method: "POST", headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ question: q, mode, dataset: document.getElementById("dataset").value }),
+    body: JSON.stringify({ question: q, mode, dataset: document.getElementById("dataset").value,
+                           domain: (document.getElementById("kbScope") || {}).value || "" }),
     cache: "no-store",
   });
   if (!r.ok || !r.body) {
@@ -202,7 +287,7 @@ async function streamChat(q, loading) {
       else if (ev.type === "answer_delta") {
         resp.answer += ev.text || "";
         if (!answerEl) render();
-        else answerEl.textContent = resp.answer;   // 仅更新文本，不重建图表，避免闪烁
+        else answerEl.textContent = resp.answer;
       }
       else if (ev.type === "done") { Object.assign(resp, ev.response); renderInspect(resp); }
       else if (ev.type === "error") {
@@ -222,20 +307,23 @@ function renderAgent(j) {
       `<span class="clarify-opt" onclick="chooseClarify(${i})">${escapeHtml(o.label)}</span>`).join("") + `</div>`;
     return h;
   }
-  if (j.sql) h += `<div class="sqlbox">${escapeHtml(j.sql)}</div>`;
+  if (j.sql) h += `<details class="sqlbox"><summary>查看生成的 SQL</summary><pre>${escapeHtml(j.sql)}</pre></details>`;
   if (j.chart && j.chart.option) h += `<div class="chart" data-chart='${escapeAttr(JSON.stringify(j.chart.option))}'></div>`;
   if (j.chart && j.chart.reason) h += `<div class="chart-reason">选图理由：${escapeHtml(j.chart.reason)}</div>`;
   if (j.rows && j.rows.length) h += tableHtml(j.columns, j.rows.slice(0, 50));
   h += `<div class="answer">${escapeHtml(j.answer||"")}</div>`;
-  if (j.sources && j.sources.length) h += j.sources.map(s=>`<div class="src">📄 ${escapeHtml(s)}</div>`).join("");
+  if (j.sources && j.sources.length) h += j.sources.map(s=>`<div class="src">来源：${escapeHtml(s)}</div>`).join("");
   return h;
 }
 
 function renderKnowledge(j) {
   const items = (j.results||[]);
   if (!items.length) return `<div class="answer">知识库暂无相关内容。</div>`;
-  let h = items.map((i,idx)=>`<div class="src">${idx+1}. ${escapeHtml(i.source)}</div><div class="answer" style="margin-bottom:8px">${escapeHtml(i.text)}</div>`).join("");
-  return h;
+  return items.map((i,idx)=>{
+    const t = String(i.text||"");
+    const shown = t.length > 220 ? t.slice(0, 220) + "……（已截断）" : t;
+    return `<div class="src">${idx+1}. ${escapeHtml(i.source)}</div><div class="answer" style="margin-bottom:8px">${escapeHtml(shown)}</div>`;
+  }).join("");
 }
 
 function tableHtml(cols, rows) {
@@ -246,11 +334,10 @@ function tableHtml(cols, rows) {
 
 function renderInspect(j) {
   let h = "";
-  if (j.route) h += `<div>路由：<b>${j.route}</b>${j.elapsed_ms?` · ${j.elapsed_ms}ms`:""}</div>`;
-  if (j.sql) h += `<div class="sqlbox">${escapeHtml(j.sql)}</div>`;
+  if (j.route) h += `<div class="hint">路由：<b>${j.route}</b>${j.elapsed_ms?` · ${j.elapsed_ms}ms`:""}</div>`;
+  if (j.sql) h += `<details class="sqlbox" open><summary>生成的 SQL</summary><pre>${escapeHtml(j.sql)}</pre></details>`;
   if (j.sources && j.sources.length) h += j.sources.map(s=>`<div class="src">${escapeHtml(s)}</div>`).join("");
-  if (!h) h = "尚无执行";
-  document.getElementById("inspect").innerHTML = h;
+  document.getElementById("inspect").innerHTML = h || `<div class="empty">尚无执行</div>`;
 }
 
 async function uploadData() {
@@ -262,7 +349,7 @@ async function uploadData() {
   if (j.success) {
     alert(`导入成功：${j.dataset.name}（${j.dataset.rows} 行）`);
     await loadDatasetOptions();
-    document.getElementById("dataset").value = j.dataset.name;  // 上传后自动选中该表
+    document.getElementById("dataset").value = j.dataset.name;
     refreshAlertControls();
   } else {
     alert(`失败：${j.message}`);
@@ -277,11 +364,20 @@ async function uploadDoc() {
   const j = await r.json();
   alert(j.success ? `索引成功：${j.source}（${j.chunks} 片段）` : `失败：${j.detail||JSON.stringify(j)}`);
 }
+
+const _TABLE_ICON = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>`;
 async function loadDatasets() {
-  const r = await fetch("/api/v1/datasets");
-  const j = await r.json();
-  document.getElementById("dslist").innerHTML = (j||[]).map(d=>
-    `<div class="ds-item"><span>${d.name} · ${d.rows}行</span><button onclick="delDs('${d.name}')">删除</button></div>`).join("") || "无数据集";
+  const el = document.getElementById("dslist");
+  try {
+    const r = await fetch("/api/v1/datasets");
+    const j = await r.json();
+    const list = j || [];
+    el.innerHTML = list.length
+      ? list.map(d=>`<div class="ds-item"><span class="ds-ic">${_TABLE_ICON}</span><span>${escapeHtml(d.name)}</span><span class="ds-rows">${d.rows} 行</span><button class="ds-del" onclick="delDs('${escapeAttr(d.name)}')">删除</button></div>`).join("")
+      : `<div class="empty">暂无数据集<br/>先在上方上传一份 CSV / Excel</div>`;
+  } catch (e) {
+    el.innerHTML = `<div class="empty">加载失败，请确认后端已启动<br/>然后点击「刷新数据集」</div>`;
+  }
 }
 async function loadDatasetOptions() {
   const sel = document.getElementById("dataset");
@@ -296,8 +392,9 @@ async function loadDatasetOptions() {
 }
 
 async function delDs(n) {
-  if (!confirm(`删除表 ${n}？`)) return;
+  if (!confirm(`删除表 ${n}？（仅删除库内数据，磁盘原文件保留）`)) return;
   await fetch(`/api/v1/datasets/${n}`, { method:"DELETE" });
+  await loadDatasetOptions();
   loadDatasets();
 }
 async function reindex() {
@@ -307,13 +404,15 @@ async function reindex() {
 }
 async function refreshAlertControls() {
   const ds = document.getElementById("dataset").value;
-  if (!ds) { document.getElementById("monitoring").textContent = "—"; return; }
+  const mon = document.getElementById("monitoring");
+  const tgt = document.getElementById("alertTarget");
+  if (!ds) { tgt.textContent = "未选择（将自动取第一张表）"; mon.textContent = "—"; return; }
   try {
     const r = await fetch(`/api/v1/alerts/profile?dataset=${encodeURIComponent(ds)}`);
     const j = await r.json();
-    if (!j.ok) { document.getElementById("monitoring").textContent = "不可用"; return; }
-    document.getElementById("monitoring").textContent =
-      j.monitoring + `（指标：${(j.metrics||[]).join("、")||"无"}）`;
+    tgt.textContent = j.dataset || ds;
+    if (!j.ok) { mon.textContent = "不可用"; return; }
+    mon.textContent = j.monitoring + `（指标：${(j.metrics||[]).join("、")||"无"}）`;
     const cur = document.getElementById("alertTimeCol").value;
     document.getElementById("alertTimeCol").innerHTML =
       `<option value="">时间列：自动</option>` +
@@ -323,9 +422,8 @@ async function refreshAlertControls() {
 }
 
 async function runAlert() {
-  const ds = document.getElementById("dataset").value;
   const body = {
-    dataset: ds,
+    dataset: document.getElementById("dataset").value,
     sensitivity: document.getElementById("alertSens").value,
     time_col: document.getElementById("alertTimeCol").value || null,
   };
@@ -334,10 +432,11 @@ async function runAlert() {
   });
   const j = await r.json();
   let h = "";
-  if (j.notes && j.notes.length) h += j.notes.map(n=>`<div class="alert-box">ℹ️ ${escapeHtml(n)}</div>`).join("");
+  if (j.dataset) h += `<div class="hint">扫描对象：<b>${escapeHtml(j.dataset)}</b>${j.monitoring ? " · " + escapeHtml(j.monitoring) : ""}</div>`;
+  if (j.notes && j.notes.length) h += j.notes.map(n=>`<div class="alert-box">${escapeHtml(n)}</div>`).join("");
   const items = j.anomalies || [];
   if (!items.length) {
-    h += `<div class="alert-box">✅ ${escapeHtml(j.advice||"暂未发现异常")}</div>`;
+    h += `<div class="alert-box">${escapeHtml(j.advice||"暂未发现异常")}</div>`;
   } else {
     _drills = items.map(a => a.drill_question || "");
     h += items.map((a, i) => {
@@ -361,7 +460,6 @@ function drill(i) {
   document.getElementById("q").value = q;
   send();
 }
-
 let _clarifyOpts = [];
 function chooseClarify(i) {
   const o = _clarifyOpts[i];
@@ -373,9 +471,17 @@ function chooseClarify(i) {
 function escapeHtml(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
 function escapeAttr(s){return String(s).replace(/'/g,"&#39;");}
 
-fetch("/api/v1/health").then(r=>r.json()).then(j=>{
-  document.getElementById("status").textContent = `数据源:${j.data_source} · LLM:${j.llm_provider}${j.llm_configured?"(已配置)":"(Mock)"}`;
-});
+async function loadHealth(retry) {
+  try {
+    const r = await fetch("/api/v1/health");
+    const j = await r.json();
+    setStatus(`后端已连接 · ${j.llm_provider}${j.llm_configured ? "(已配置)" : "(Mock)"}`, true);
+  } catch (e) {
+    if (retry) { setStatus("正在连接后端…", null); setTimeout(() => loadHealth(false), 2500); }
+    else setStatus("后端未就绪，请刷新页面", false);
+  }
+}
+loadHealth(true);
 loadDatasets();
 loadDatasetOptions();
 refreshAlertControls();
