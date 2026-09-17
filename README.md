@@ -12,8 +12,8 @@
 > **关于数据**：服务启动后数据库为空，需在界面「数据管理」上传 CSV/Excel 即自动建表，之后即可对话查询；或实现 `data/warehouse_source.py` 接真实数仓。
 
 ## 环境要求
-- Python 3.12（已验证 3.12.10）
-- Windows/macOS/Linux
+- **Python 3.12**（已在 3.12.10 验证；低于 3.12 不支持，`pyproject.toml` 中声明 `requires-python = ">=3.12"`）
+- Windows / macOS / Linux
 
 ## 快速开始
 
@@ -89,3 +89,23 @@ src/ecommerce_ai/
 | GET  | /api/v1/datasets | 数据集列表 |
 | POST | /api/v1/alerts/scan | 触发预警扫描 |
 | GET  | /api/v1/health | 健康检查 |
+
+## 常见问题
+
+### Windows 启动报 `ImportError: DLL load failed while importing _uuid_utils`
+
+这是 **Windows「智能应用控制」拦截了第三方依赖的加载**，与项目代码无关。
+
+`langchain-core` 1.x 依赖 `uuid-utils`（Rust 编译扩展，仅用于生成 `uuid7` 追踪 ID）。部分 Windows 环境（新装或重置后的 Windows 11，以及启用了 WDAC 策略的电脑）会阻止该 `.pyd` 文件加载，导致导入链路整体失败。
+
+**解决办法**：`设置 → 隐私和安全性 → Windows 安全中心 → 应用和浏览器控制 → 智能应用控制 → 关闭`。
+
+> 若该开关本来就是关闭状态，说明拦截来自 WDAC 组策略（多见于公司或学校统一管理的电脑），需联系 IT 放行。macOS / Linux 不存在此问题。
+
+### 启动后数据库是空的，提问查不到数据？
+
+首次启动会自动创建空库，这是预期行为。请先在界面「数据管理」上传 CSV / Excel（上传后自动建表），之后即可对话查询。详见上方「接真实数据」。
+
+### 没填 API Key 能跑吗？
+
+可以。`.env` 未填 `DEEPSEEK_API_KEY` 时会自动回退到 MockLLM，对话流程、SQL 生成、图表与中文解读链路均可在无密钥、无外网的情况下完整演示。
