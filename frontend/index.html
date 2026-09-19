@@ -104,7 +104,7 @@ select.field{appearance:none;-webkit-appearance:none;background-image:url("data:
 <body>
 <header>
   <div class="logo">AI</div>
-  <div class="brand">电商数据分析 AI 助手<small>自然语言问数 · 知识库问答</small></div>
+  <div class="brand">电商数据分析助手<small>商品浏览 · 销售转化 · 流量来源</small></div>
   <div class="seg">
     <button class="active" data-mode="auto">自动</button>
     <button data-mode="analysis">分析</button>
@@ -115,13 +115,14 @@ select.field{appearance:none;-webkit-appearance:none;background-image:url("data:
 <main>
   <div class="chat">
     <div class="msgs" id="msgs">
-      <div class="msg"><div class="avatar">AI</div><div class="bubble"><div class="answer">你好！我是电商数据分析助手。试试问我「上个月华东区羽绒服的销售额和同比怎么样？」，或切换到知识库问售后政策。</div></div></div>
+      <div class="msg"><div class="avatar">AI</div><div class="bubble"><div class="answer">你好！我是你的店商数据分析助手，已接入「抖音店铺商品浏览销售数据」。试试问我：销售额最高的商品有哪些？各流量来源的 GMV 对比，或哪款商品退款率偏高。</div></div></div>
     </div>
     <div class="chips">
-      <span onclick="fill('上个月华东区羽绒服的销售额和同比怎么样？')">华东羽绒服销售额</span>
-      <span onclick="fill('各品类销售额排行')">品类排行</span>
-      <span onclick="fill('近半年各区域 GMV 趋势')">区域GMV趋势</span>
-      <span onclick="fill('七天无理由退货怎么操作？')">退货政策</span>
+      <span onclick="fill('销售额最高的前 10 个商品是哪些？','抖音女装店铺_商品浏览销售数据表')">销售额 TOP10</span>
+      <span onclick="fill('按主要流量来源统计成交金额并对比','抖音女装店铺_商品浏览销售数据表')">各流量来源 GMV</span>
+      <span onclick="fill('退款率最高的 10 个商品有哪些？','抖音女装店铺_商品浏览销售数据表')">退款率异常商品</span>
+      <span onclick="fill('支付转化率最高的商品是哪些？','抖音女装店铺_商品浏览销售数据表')">转化率排行</span>
+      <span onclick="fill('点击率最高但转化率偏低的商品有哪些？','抖音女装店铺_商品浏览销售数据表')">高点击低转化</span>
     </div>
     <div class="input-row">
       <select class="field" id="dataset" title="选择分析的数据集" onchange="refreshAlertControls()">
@@ -206,7 +207,14 @@ document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   ["data","exec","alert"].forEach(p => { document.getElementById("pane-"+p).hidden = (p !== t.dataset.tab); });
 });
 
-function fill(t) { document.getElementById("q").value = t; }
+function fill(t, ds) {
+  document.getElementById("q").value = t;
+  // 快捷问题可顺带锁定数据集，避免「自动（全部表）」下的跨表歧义
+  if (ds) {
+    document.getElementById("dataset").value = ds;
+    refreshAlertControls();
+  }
+}
 function showName(kind) {
   const f = document.getElementById(kind + "file").files[0];
   document.getElementById(kind + "name").textContent = f ? f.name : "未选择文件";
