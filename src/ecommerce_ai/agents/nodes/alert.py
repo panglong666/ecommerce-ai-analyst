@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ecommerce_ai.alerting.config import PROMO_DATES, SENSITIVITY_Z
+from ecommerce_ai.alerting.config import SENSITIVITY_Z
 from ecommerce_ai.alerting.profiler import profile_table
 from ecommerce_ai.alerting.rules import (
     detect_cross_section,
@@ -65,7 +65,8 @@ def scan_alerts(req: AlertScanRequest | None = None) -> AlertScanResponse:
     if prev:
         items += detect_cross_upload(df, profile, prev)
 
-    items = _apply_seasonal(items, df, profile)
+    # 节日窗口豁免已下沉到 detect_temporal（按指标类型区分预热/节后窗口）
+
     items.sort(key=lambda x: _LEVEL_ORDER.get(x.level, 9))
 
     advice = "未发现明显异常。" if not items else (
@@ -81,18 +82,3 @@ def scan_alerts(req: AlertScanRequest | None = None) -> AlertScanResponse:
         advice=advice,
         scanned=len(items),
     )
-
-
-def _apply_seasonal(items, df: pd.DataFrame, profile) -> list:
-    """完整时序下，最新值命中大促/节假日日历则降级并标注预期内。"""
-    if profile.mode != "full_temporal" or not profile.time_col:
-        return items
-    ts = pd.to_datetime(df[profile.time_col], errors="coerce").dropna()
-    if ts.empty:
-        return items
-    if (ts.max().month, ts.max().day) in PROMO_DATES:
-        for it in items:
-            it.message += "（最新值处于大促/节假日，可能为预期内波动）"
-            if it.level == "P0":
-                it.level = "P1"
-    return items

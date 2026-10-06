@@ -39,16 +39,31 @@ def _detect_time_col(df: pd.DataFrame) -> str | None:
 
 
 def _detect_metric_cols(df: pd.DataFrame, time_col: str | None) -> list[str]:
+    """识别指标列（数值型）。
+
+    只排除「疑似主键/流水号」，判据必须精准：
+    早期用基数阈值 `nunique > max(50, 0.9*行数)` 会把**高基数的连续指标**
+    （曝光量、成交金额、客单价、未取整的转化率…）一并误杀——真实报表上
+    几乎全部指标都被排除，预警因此形同虚设（小样本单测因阈值恰好为 50 而未暴露）。
+    现改为两个精准判据：
+      ① 列名命中 ID 关键词（id / 编号 / 序号 / 订单号 …）
+      ② 整数且为「全唯一 + 完美连续」序列（1,2,3,…）→ 序号特征
+    """
     cols: list[str] = []
     for c in df.columns:
         if c == time_col or _ID_RE.search(str(c)):
             continue
-        if pd.api.types.is_numeric_dtype(df[c]):
-            nunique = df[c].nunique(dropna=True)
-            # 排除高基数（疑似 ID）的数值列
-            if nunique > max(50, 0.9 * len(df)):
+        if not pd.api.types.is_numeric_dtype(df[c]):
+            continue
+        s = df[c].dropna()
+        if s.empty:
+            continue
+        # 序号特征：整数 + 全唯一 + 完美连续
+        if pd.api.types.is_integer_dtype(s) and s.nunique() == len(s):
+            span = int(s.max()) - int(s.min()) + 1
+            if span == len(s):
                 continue
-            cols.append(c)
+        cols.append(c)
     return cols
 
 

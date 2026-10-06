@@ -23,7 +23,13 @@ def store_snapshot(name: str, df) -> None:
     try:
         src = get_data_source()
         profile = profile_table(df)
-        agg: dict[str, dict] = {m: _aggregate(df, profile, m) for m in profile.metric_cols}
+        # 结构须为 {维度label: {指标: 值}}，与 detect_cross_upload 及单测约定一致。
+        # 早期误写为 {指标: {label: 值}}，键序不匹配导致跨次环比静默失效（永远拿不到上一版）。
+        _raw = {m: _aggregate(df, profile, m) for m in profile.metric_cols}
+        agg: dict[str, dict] = {}
+        for _metric, _per_label in _raw.items():
+            for _label, _val in _per_label.items():
+                agg.setdefault(_label, {})[_metric] = _val
         payload = {
             "name": name,
             "ts": datetime.now(timezone.utc).isoformat(),
@@ -70,7 +76,9 @@ def get_previous(name: str) -> dict | None:
             rows = _load_json(name)
         if len(rows) < 2:
             return None
-        return json.loads(rows[-2])  # 倒数第二条 = 上一次上传
+        # rows 按 ts 降序：rows[0]=刚写入的本次，rows[1]=上一次上传。
+        # 注意：len==2 时 rows[-2] 等价于 rows[0]（= 本次），会造成「自己跟自己比」→ 永远 0 差异。
+        return json.loads(rows[1])
     except Exception:  # noqa: BLE001
         return None
 

@@ -67,3 +67,36 @@ def test_weak_temporal_short_span():
     })
     p = profile_table(df)
     assert p.mode == "weak_temporal"
+
+
+def test_high_cardinality_metrics_not_excluded():
+    """防回归：高基数的连续指标不应被当成 ID 排除。
+
+    早期判据 `nunique > max(50, 0.9*行数)` 在真实报表上（行数多 + 指标基数天然高）
+    会把曝光量、成交金额、未取整的转化率**几乎全部误杀**，导致预警静默失效。
+    小样本单测（阈值恰为 50）无法暴露，这里用 200 行构造真实量级。
+    """
+    n = 200
+    rng = np.random.default_rng(7)
+    df = pd.DataFrame({
+        "日期": _dates(n),
+        "渠道": (["直播", "短视频", "商城", "搜索"] * (n // 4)),
+        "曝光量(次)": rng.integers(10000, 60000, n),          # 高基数整数（非连续）
+        "成交金额(元)": rng.uniform(1000, 90000, n).round(2),  # 高基数浮点
+        "支付转化率(%)": rng.uniform(0.01, 0.08, n),           # 未取整 → 基数 = n
+    })
+    p = profile_table(df)
+    for col in ["曝光量(次)", "成交金额(元)", "支付转化率(%)"]:
+        assert col in p.metric_cols, f"{col} 不应被当作 ID 排除"
+    assert "渠道" in p.dim_cols
+
+
+def test_pure_sequence_col_excluded():
+    """整数且完美连续的序号列（1,2,3,…）应被排除，其余数值列保留。"""
+    df = pd.DataFrame({
+        "序号": list(range(1, 31)),
+        "销售额": np.random.default_rng(8).uniform(100, 200, 30),
+    })
+    p = profile_table(df)
+    assert "序号" not in p.metric_cols
+    assert "销售额" in p.metric_cols
