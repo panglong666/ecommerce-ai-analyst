@@ -4,12 +4,11 @@
 
 面向**一个人管几十款商品的电商运营**：过去查数据要提需求、等数据组排期，问题常常等发现时已经晚了。本项目把「提数需求」压缩成一句话，并主动提示"该管却没人管"的异常。
 
-<!--
-截图占位：跑起来后截 3 张图放进 docs/images/，然后把下面三行的注释去掉
-![主界面问答](docs/images/main.png)
-![SQL 与图表](docs/images/sql.png)
-![异常预警](docs/images/alerts.png)
--->
+![主界面：中文提问 → 图表 + 结论](docs/images/main.png)
+
+![取数过程可核对：展开生成的 SQL 与结果表](docs/images/sql.png)
+
+![异常预警：自动识别列、按级别分级、一键归因](docs/images/alerts.png)
 
 ## 核心能力
 
